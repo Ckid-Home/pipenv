@@ -32,7 +32,7 @@ pipenv graph [OPTIONS]
 
 ## install
 
-Installs provided packages and adds them to Pipfile, or (if no packages are given), installs all packages from Pipfile.
+Installs provided packages and adds them to Pipfile, or (if no packages are given), installs all packages from Pipfile.lock
 
 ```bash
 pipenv install [OPTIONS] [PACKAGES]...
@@ -80,6 +80,14 @@ Spawns a command installed into the virtualenv.
 
 ```bash
 pipenv run [OPTIONS] COMMAND [ARGS]...
+```
+
+## scripts
+
+Lists scripts in current environment config.
+
+```bash
+pipenv scripts [OPTIONS]
 ```
 
 ## shell
