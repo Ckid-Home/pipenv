@@ -181,6 +181,10 @@ def test_write_credentials_netrc_from_env_var_expanded_url(tmp_path, monkeypatch
 
     monkeypatch.setenv("NEXUS_USERNAME", "real-user")
     monkeypatch.setenv("NEXUS_PASSWORD", "real-pass!@#")
+    # Isolate from any real ~/.netrc on the developer's machine.
+    system_netrc = tmp_path / "system.netrc"
+    system_netrc.write_text("", encoding="utf-8")
+    monkeypatch.setenv("NETRC", str(system_netrc))
 
     raw_url = (
         "https://${NEXUS_USERNAME}:${NEXUS_PASSWORD}"
@@ -218,11 +222,14 @@ def test_set_resolver_netrc_includes_pypi_mirror_credentials(tmp_path, monkeypat
     system_netrc.write_text("", encoding="utf-8")
     monkeypatch.setenv("NETRC", str(system_netrc))
 
-    class _Project:
+    class _Sources:
         # Mirrors the issue's Pipfile: a custom-host source named "pypi"
         # with no embedded credentials.
         def pipfile_sources(self):
             return [{"url": "https://pypi.mirror", "verify_ssl": True, "name": "pypi"}]
+
+    class _Project:
+        sources = _Sources()
 
     _set_resolver_netrc(_Project(), str(tmp_path))
 

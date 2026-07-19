@@ -1,6 +1,7 @@
 """Unit tests for pipenv.routines.update helpers."""
 from unittest.mock import MagicMock, patch
 
+from pipenv.routines.context import RoutineContext
 from pipenv.routines.update import (
     _clean_unused_dependencies,
     _process_package_args,
@@ -362,7 +363,8 @@ def test_process_package_args_does_not_cross_contaminate_categories():
         mock_irl.return_value = (mock_install_req, "mypy==1.5.1")
 
         _process_package_args(
-            project=project,
+            project,
+            RoutineContext.from_cli(lock_only=False),
             package_args=["mypy==1.5.1"],
             pipfile_category="packages",  # default – no --dev
             index_name=None,
@@ -371,7 +373,6 @@ def test_process_package_args_does_not_cross_contaminate_categories():
             category="default",
             has_package_args=True,
             requested_packages=requested_packages,
-            lock_only=False,
         )
 
     # The lockfile resolution dict should be populated…
@@ -402,7 +403,8 @@ def test_process_package_args_writes_to_pipfile_when_package_in_correct_category
         mock_irl.return_value = (mock_install_req, "requests==2.31.0")
 
         _process_package_args(
-            project=project,
+            project,
+            RoutineContext.from_cli(lock_only=False),
             package_args=["requests==2.31.0"],
             pipfile_category="packages",
             index_name=None,
@@ -411,7 +413,6 @@ def test_process_package_args_writes_to_pipfile_when_package_in_correct_category
             category="default",
             has_package_args=True,
             requested_packages=requested_packages,
-            lock_only=False,
         )
 
     assert "requests" in requested_packages["packages"]
@@ -449,7 +450,7 @@ def test_do_update_no_args_goes_through_do_lock():
     ) as mock_upgrade, patch("pipenv.routines.update.do_sync") as mock_sync, patch(
         "pipenv.routines.update.ensure_project"
     ):
-        do_update(project, packages=[], editable_packages=[])
+        do_update(project, RoutineContext.from_cli())
 
     mock_lock.assert_called_once()
     mock_upgrade.assert_not_called()
@@ -465,7 +466,7 @@ def test_do_update_with_packages_uses_upgrade_path():
     ) as mock_upgrade, patch("pipenv.routines.update.do_sync") as mock_sync, patch(
         "pipenv.routines.update.ensure_project"
     ):
-        do_update(project, packages=["requests"], editable_packages=[])
+        do_update(project, RoutineContext.from_cli(packages=["requests"]))
 
     mock_lock.assert_not_called()
     mock_upgrade.assert_called_once()
@@ -481,10 +482,10 @@ def test_do_update_no_args_with_dev_locks_default_and_develop():
     ), patch("pipenv.routines.update.do_sync"), patch(
         "pipenv.routines.update.ensure_project"
     ):
-        do_update(project, packages=[], editable_packages=[], dev=True)
+        do_update(project, RoutineContext.from_cli(dev=True))
 
-    _, kwargs = mock_lock.call_args
-    assert kwargs["categories"] == ["default", "develop"]
+    (_, lock_ctx), _ = mock_lock.call_args
+    assert list(lock_ctx.package_selection.categories) == ["default", "develop"]
 
 
 def test_do_update_no_args_default_locks_default_only():
@@ -495,10 +496,10 @@ def test_do_update_no_args_default_locks_default_only():
     ), patch("pipenv.routines.update.do_sync"), patch(
         "pipenv.routines.update.ensure_project"
     ):
-        do_update(project, packages=[], editable_packages=[])
+        do_update(project, RoutineContext.from_cli())
 
-    _, kwargs = mock_lock.call_args
-    assert kwargs["categories"] == ["default"]
+    (_, lock_ctx), _ = mock_lock.call_args
+    assert list(lock_ctx.package_selection.categories) == ["default"]
 
 
 def test_do_update_outdated_skips_both_lock_and_upgrade():
@@ -509,7 +510,7 @@ def test_do_update_outdated_skips_both_lock_and_upgrade():
     ) as mock_upgrade, patch("pipenv.routines.update.do_outdated") as mock_outdated, patch(
         "pipenv.routines.update.do_sync"
     ), patch("pipenv.routines.update.ensure_project"):
-        do_update(project, packages=[], editable_packages=[], outdated=True)
+        do_update(project, RoutineContext.from_cli(dry_run=True))
 
     mock_lock.assert_not_called()
     mock_upgrade.assert_not_called()
